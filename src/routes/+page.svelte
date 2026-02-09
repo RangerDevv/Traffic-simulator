@@ -3,6 +3,5 @@
 </script>
 
 <main>
-    <h1>Traffic Simulator</h1>
         <Car />
 </main>

@@ -25,54 +25,108 @@
         stopSignCompliance: 0.9
     };
 
+    interface ray {
+        id: number;
+        angle: number;
+        distance: number;
+        collision: boolean;
+        originPosition: { x: number; y: number };
+        hitObject?: number;
+    }
+    
+    let rays: ray[] = [];
+
+    function getSceneObstacles() {
+        const obstacles = [];
+        
+        // Find all elements marked as obstacles (you can use class, data attribute, etc.)
+        const obstacleElements = document.querySelectorAll('[data-obstacle], .obstacle, span[draggable="true"]');
+        
+        obstacleElements.forEach((element, index) => {
+            // console.log('Found obstacle element:', element);
+            const rect = element.getBoundingClientRect();
+                // Convert to relative coordinates within the car container
+                const relativeX = rect.left;
+                const relativeY = rect.top;
+                
+                obstacles.push({
+                    id: index,
+                    x: relativeX, // leftmost x
+                    y: relativeY, // topmost y 
+                    width: rect.width,
+                    height: rect.height,
+                    // Additional corner coordinates if needed:
+                    bottomLeftX: relativeX,
+                    bottomLeftY: relativeY + rect.height,
+                    rightmostX: relativeX + rect.width,
+                    rightmostY: relativeY
+                });
+        });
+        return obstacles;
+    }
+
+    function checkCollision(ray: ray) {
+        const obstacles = getSceneObstacles();
+        const rayStartX = ray.originPosition.x;
+        const rayStartY = ray.originPosition.y;
+        const rayEndX = rayStartX + Math.cos(ray.angle * Math.PI / 180) * ray.distance;
+        const rayEndY = rayStartY + Math.sin(ray.angle * Math.PI / 180) * ray.distance;
+
+        for (let obstacle of obstacles) {
+            console.log(`Checking ray ${ray.id} against obstacle ${obstacle.id}: Ray from (${rayStartX.toFixed(2)}, ${rayStartY.toFixed(2)}) to (${rayEndX.toFixed(2)}, ${rayEndY.toFixed(2)}) vs Obstacle at (${obstacle.x}, ${obstacle.y}, ${obstacle.width}x${obstacle.height})`);
+
+            const left = lineLine(rayStartX, rayStartY, rayEndX, rayEndY, obstacle.x, obstacle.y, obstacle.x, obstacle.y + obstacle.height);
+            const right = lineLine(rayStartX, rayStartY, rayEndX, rayEndY, obstacle.x + obstacle.width, obstacle.y, obstacle.x + obstacle.width, obstacle.y + obstacle.height);
+            const top = lineLine(rayStartX, rayStartY, rayEndX, rayEndY, obstacle.x, obstacle.y, obstacle.x + obstacle.width, obstacle.y);
+            const bottom = lineLine(rayStartX, rayStartY, rayEndX, rayEndY, obstacle.x, obstacle.y + obstacle.height, obstacle.x + obstacle.width, obstacle.y + obstacle.height);
+
+            if (left || right || top || bottom) {
+                ray.collision = true;
+                console.log(`Ray ${ray.id} collided with obstacle at (${obstacle.x}, ${obstacle.y})`);
+                return true;
+            }
+        }
+        ray.collision = false;
+        return false;
+    }
+
+    // Helper function for line-line intersection
+    function lineLine(x1: number, y1: number, x2: number, y2: number, x3: number, y3: number, x4: number, y4: number) {
+        const den = (x1 - x2) * (y3 - y4) - (y1 - y2) * (x3 - x4);
+        if (den === 0) {
+            return false; // Lines are parallel
+        }
+
+        const t = ((x1 - x3) * (y3 - y4) - (y1 - y3) * (x3 - x4)) / den;
+        const u = -((x1 - x2) * (y1 - y3) - (y1 - y2) * (x1 - x3)) / den;
+
+        return t > 0 && t < 1 && u > 0 && u < 1;
+    }
+
     function projectRays(numRays: number) {
-        const frontFOV = 190; // field of view in degrees
-        const halfFov = frontFOV / 2;
-        const angleStep = frontFOV / (numRays - 1);
-
-        const backFOV = -180; // field of view in degrees
-        const backHalfFov = backFOV / 2;
-
+        rays = []; // Clear existing rays
+        const totalSpread = 180; // Total degrees to cover
+        const angleIncrement = totalSpread / (numRays - 1); // -1 to include both endpoints
+        const maxDistance = 100;
+        const startAngle = -90; // Start from -90 degrees (left side)
+        
         for (let i = 0; i < numRays; i++) {
-            // Spread rays across the FOV centered on the forward direction
-            // CSS rotation: 0deg = down, -90deg = right (forward for the car)
-            // So forward center is -90deg, and we spread ±halfFov around it
-            let rayAngle = -90 - halfFov + angleStep * i;
-
-            let ray = document.createElement("div");
-            ray.style.position = "absolute";
-            ray.style.width = "1px";
-            ray.style.height = "500px";
-            ray.style.backgroundColor = "blue";
-            // Position at the front-center of the car (right edge, vertical center)
-            ray.style.left = `${car.offsetWidth}px`;
-            ray.style.top = `${car.offsetHeight / 2}px`;
-            ray.style.transformOrigin = "0 0";
-            ray.style.transform = `rotate(${rayAngle}deg)`;
-            car.appendChild(ray);
+            const angle = startAngle + (i * angleIncrement); // This will go from -90 to +90 degrees
+            rays.push({
+                id: i,
+                angle: angle,
+                distance: maxDistance,
+                collision: false,
+                originPosition: { x: 25, y: 12.5 } // Car center
+            });
+            // update ray 
+            rays[i].collision = checkCollision(rays[i]);
+            
         }
+    }
 
-        const backNumRays = 15;
-        const absFov = Math.abs(backFOV);
-        const backAngleStep = absFov / (backNumRays - 1);
-
-        for (let i = 0; i < backNumRays; i++) {
-            // Spread rays across the FOV centered on the backward direction
-            // Backward center is 90deg, spread ±halfBackFov around it
-            let rayAngle = 90 - absFov / 2 + backAngleStep * i;
-
-            let ray = document.createElement("div");
-            ray.style.position = "absolute";
-            ray.style.width = "1px";
-            ray.style.height = "300px";
-            ray.style.backgroundColor = "red";
-            // Position at the back-center of the car (left edge, vertical center)
-            ray.style.left = `0px`;
-            ray.style.top = `${car.offsetHeight / 2}px`;
-            ray.style.transformOrigin = "0 0";
-            ray.style.transform = `rotate(${rayAngle}deg)`;
-            car.appendChild(ray);
-        }
+    function detectObstacles() {
+        // Placeholder for obstacle detection logic using raycasting
     }
 
     function moveCar() {
@@ -80,9 +134,32 @@
     }
 
     onMount(() => {
-        projectRays(50);
+        projectRays(15);
     }); 
 </script>
 
-<div class="car" bind:this={car} style="background-color: {carAttributes.color}; width: 50px; height: 25px; position: relative; margin: 500px;">
+<div class="car-container" style="position: relative; width: 400px; height: 300px;">
+    <div class="car" bind:this={car} style="background-color: {carAttributes.color}; width: 50px; height: 25px; position: relative; z-index: 2;">
+    </div>
+    
+    <!-- Reactive SVG rays using Svelte's templating -->
+    <svg 
+        style="position: absolute; top: -50px; left: -50px; pointer-events: none; z-index: 1;"
+        viewBox="0 0 400 300"
+    >
+        {#each rays as ray}
+            <line
+                x1="75"
+                y1="62.5"
+                x2={75 + Math.cos((ray.angle) * Math.PI / 180) * ray.distance}
+                y2={62.5 + Math.sin((ray.angle) * Math.PI / 180) * ray.distance}
+                stroke={ray.collision ? "red" : "rgba(0, 255, 0, 0.7)"}
+                stroke-width="1.5"
+                opacity="0.8"
+            />
+        {/each}
+    </svg>
+
+    <!-- draggable box to simulate obstacle -->
 </div>
+<span data-obstacle style="position: absolute; width: 20px; height: 20px; background-color: black; left: 50px; top: 80.5px; z-index: 2;" draggable="true"></span>
