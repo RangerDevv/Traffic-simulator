@@ -90,7 +90,7 @@
         return false;
     }
 
-    // Helper function for line-line intersection
+    //line-line intersection
     function lineLine(x1: number, y1: number, x2: number, y2: number, x3: number, y3: number, x4: number, y4: number) {
         const den = (x1 - x2) * (y3 - y4) - (y1 - y2) * (x3 - x4);
         if (den === 0) {
@@ -119,8 +119,10 @@
                 collision: false,
                 originPosition: { x: 25, y: 12.5 } // Car center
             });
-            // update ray 
-            rays[i].collision = checkCollision(rays[i]);
+            // update ray
+            setInterval(() => {
+                rays[i].collision = checkCollision(rays[i]);
+            }, 1000);
             
         }
     }
@@ -130,16 +132,22 @@
     }
 
     function moveCar() {
+        // get the car container and move it by 50px to the right every second
+        setInterval(() => {
+            const currentLeft = parseFloat(car.style.left) || 0;
+            car.style.left = `${currentLeft + 50}px`;
+        }, 1000);
 
     }
 
     onMount(() => {
         projectRays(15);
+        moveCar();
     }); 
 </script>
 
-<div class="car-container" style="position: relative; width: 400px; height: 300px;">
-    <div class="car" bind:this={car} style="background-color: {carAttributes.color}; width: 50px; height: 25px; position: relative; z-index: 2;">
+<div class="car-container" bind:this={car} style="position: relative; width: 400px; height: 300px;">
+    <div class="car"  style="background-color: {carAttributes.color}; width: 50px; height: 25px; position: relative; z-index: 2;">
     </div>
     
     <!-- Reactive SVG rays using Svelte's templating -->
