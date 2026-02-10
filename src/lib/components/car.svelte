@@ -117,7 +117,7 @@
                 angle: angle,
                 distance: maxDistance,
                 collision: false,
-                originPosition: { x: 25, y: 12.5 } // Car center
+                originPosition: { x: car.offsetLeft + 25, y: car.offsetTop + 12.5 } // center of the car
             });
             // update ray
             setInterval(() => {
