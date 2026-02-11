@@ -43,6 +43,8 @@
     }
     
     let rays: ray[] = [];
+    let dragging = false;
+    let dragOffset = { x: 0, y: 0 };
 
     function getSceneObstacles() {
         const obstacles = [];
@@ -146,7 +148,31 @@
             const currentLeft = parseFloat(car.style.left) || 0;
             car.style.left = `${currentLeft + 50}px`;
         }, 1000);
+    }
 
+    function handleDragStart(event: DragEvent) {
+        if (event.target instanceof HTMLElement) {
+            const rect = event.target.getBoundingClientRect();
+            dragOffset.x = event.clientX - rect.left;
+            dragOffset.y = event.clientY - rect.top;
+            dragging = true;
+        }
+    }
+
+    function handleDragOver(event: DragEvent) {
+        event.preventDefault(); // Allow drop
+    }
+
+    function handleDrop(event: DragEvent) {
+        event.preventDefault();
+        if (dragging) {
+            const obstacle = document.querySelector('[data-obstacle]') as HTMLElement;
+            if (obstacle) {
+                obstacle.style.left = `${event.clientX - dragOffset.x}px`;
+                obstacle.style.top = `${event.clientY - dragOffset.y}px`;
+            }
+            dragging = false;
+        }
     }
 
     onMount(() => {
@@ -156,7 +182,7 @@
     }); 
 </script>
 
-<div class="car-container" bind:this={car} style="position: relative; width: 400px; height: 300px;">
+<div class="car-container" bind:this={car} style="position: relative; width: 400px; height: 300px;" on:dragover={handleDragOver} on:drop={handleDrop}>
     <div class="car"  style="background-color: {carAttributes.color}; width: 50px; height: 25px; position: relative; z-index: 2;">
     </div>
     
@@ -180,4 +206,10 @@
 
     <!-- draggable box to simulate obstacle -->
 </div>
-<span data-obstacle style="position: absolute; width: 20px; height: 20px; background-color: black; left: 50px; top: 80.5px; z-index: 2;" draggable="true"></span>
+<span 
+    data-obstacle 
+    style="position: absolute; width: 20px; height: 20px; background-color: black; left: 50px; top: 80.5px; z-index: 2; cursor: grab;" 
+    draggable="true"
+    on:dragstart={handleDragStart}
+    on:drag={() => dragging}
+></span>
