@@ -1,10 +1,11 @@
 <script lang="ts">
-    import { onMount } from "svelte";
+    import { onMount, onDestroy } from "svelte";
 
     
     let car : HTMLDivElement;
     let carCenterX: number;
     let carCenterY: number;
+    let animationId: number;
 
     // set the car's center coordinates based on its position and dimensions
     function updateCarCenter() {
@@ -14,7 +15,7 @@
 
     export let carAttributes: CarAttributes = {
         color: "red",
-        velocity: 10,
+        velocity: 30,
         maxSpeed: 60,
         acceleration: 3,
         deceleration: 5,
@@ -47,7 +48,17 @@
     let dragOffset = { x: 0, y: 0 };
 
     function getSceneObstacles() {
-        const obstacles = [];
+        const obstacles = [] as {
+            id: number;
+            x: number;
+            y: number;
+            width: number;
+            height: number;
+            bottomLeftX?: number;
+            bottomLeftY?: number;
+            rightmostX?: number;
+            rightmostY?: number;
+        }[];
         
         // Find all elements marked as obstacles (you can use class, data attribute, etc.)
         const obstacleElements = document.querySelectorAll('[data-obstacle], .obstacle, span[draggable="true"]');
@@ -138,16 +149,29 @@
         }
     }
 
-    function detectObstacles() {
-        // Placeholder for obstacle detection logic using raycasting
+    function checkForwardCollision() {
+        // Check if any rays in the forward direction (roughly front-facing) detect collision
+        const forwardRays = rays.filter(ray => ray.angle >= -30 && ray.angle <= 30);
+        return forwardRays.some(ray => ray.collision);
     }
 
     function moveCar() {
-        // get the car container and move it by 50px to the right every second
-        setInterval(() => {
-            const currentLeft = parseFloat(car.style.left) || 0;
-            car.style.left = `${currentLeft + 50}px`;
-        }, 1000);
+        // Get current position
+        const currentLeft = parseFloat(car.style.left) || 0;
+        
+        // Object avoidance: slow down or stop if obstacle detected ahead
+        const hasObstacle = checkForwardCollision();
+        const speed = hasObstacle ? carAttributes.velocity * 0.02 : carAttributes.velocity * 0.1; // Slow down near obstacles
+        
+        // Calculate new position
+        const newLeft = currentLeft + speed;
+        
+        // Apply movement
+        car.style.left = `${newLeft}px`;
+        updateCarCenter();
+        
+        // Continue animation loop
+        animationId = requestAnimationFrame(moveCar);
     }
 
     function handleDragStart(event: DragEvent) {
@@ -178,11 +202,18 @@
     onMount(() => {
         updateCarCenter();
         projectRays(15);
-        moveCar();
+        animationId = requestAnimationFrame(moveCar);
+    });
+
+    onDestroy(() => {
+        if (animationId) {
+            cancelAnimationFrame(animationId);
+        }
     }); 
 </script>
 
-<div class="car-container" bind:this={car} style="position: relative; width: 400px; height: 300px;" on:dragover={handleDragOver} on:drop={handleDrop}>
+<!-- svelte-ignore a11y_no_static_element_interactions -->
+<div class="car-container" bind:this={car} style="top:50%; position: absolute; width: 400px; height: 300px;" on:dragover={handleDragOver} on:drop={handleDrop}>
     <div class="car"  style="background-color: {carAttributes.color}; width: 50px; height: 25px; position: relative; z-index: 2;">
     </div>
     
@@ -206,6 +237,7 @@
 
     <!-- draggable box to simulate obstacle -->
 </div>
+<!-- svelte-ignore a11y_no_static_element_interactions -->
 <span 
     data-obstacle 
     style="position: absolute; width: 20px; height: 20px; background-color: black; left: 50px; top: 80.5px; z-index: 2; cursor: grab;" 
