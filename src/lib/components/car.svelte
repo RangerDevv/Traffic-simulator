@@ -3,6 +3,14 @@
 
     
     let car : HTMLDivElement;
+    let carCenterX: number;
+    let carCenterY: number;
+
+    // set the car's center coordinates based on its position and dimensions
+    function updateCarCenter() {
+        carCenterX = car.offsetLeft + (car.offsetWidth / 2);
+        carCenterY = car.offsetTop + (car.offsetHeight / 2);
+    }
 
     export let carAttributes: CarAttributes = {
         color: "red",
@@ -67,13 +75,14 @@
 
     function checkCollision(ray: ray) {
         const obstacles = getSceneObstacles();
-        const rayStartX = ray.originPosition.x;
-        const rayStartY = ray.originPosition.y;
+        const carRect = car.getBoundingClientRect();
+        const rayStartX = carRect.left + ray.originPosition.x;
+        const rayStartY = carRect.top + ray.originPosition.y;
         const rayEndX = rayStartX + Math.cos(ray.angle * Math.PI / 180) * ray.distance;
         const rayEndY = rayStartY + Math.sin(ray.angle * Math.PI / 180) * ray.distance;
 
         for (let obstacle of obstacles) {
-            console.log(`Checking ray ${ray.id} against obstacle ${obstacle.id}: Ray from (${rayStartX.toFixed(2)}, ${rayStartY.toFixed(2)}) to (${rayEndX.toFixed(2)}, ${rayEndY.toFixed(2)}) vs Obstacle at (${obstacle.x}, ${obstacle.y}, ${obstacle.width}x${obstacle.height})`);
+            // console.log(`Checking ray ${ray.id} against obstacle ${obstacle.id}: Ray from (${rayStartX.toFixed(2)}, ${rayStartY.toFixed(2)}) to (${rayEndX.toFixed(2)}, ${rayEndY.toFixed(2)}) vs Obstacle at (${obstacle.x}, ${obstacle.y}, ${obstacle.width}x${obstacle.height})`);
 
             const left = lineLine(rayStartX, rayStartY, rayEndX, rayEndY, obstacle.x, obstacle.y, obstacle.x, obstacle.y + obstacle.height);
             const right = lineLine(rayStartX, rayStartY, rayEndX, rayEndY, obstacle.x + obstacle.width, obstacle.y, obstacle.x + obstacle.width, obstacle.y + obstacle.height);
@@ -82,7 +91,7 @@
 
             if (left || right || top || bottom) {
                 ray.collision = true;
-                console.log(`Ray ${ray.id} collided with obstacle at (${obstacle.x}, ${obstacle.y})`);
+                // console.log(`Ray ${ray.id} collided with obstacle at (${obstacle.x}, ${obstacle.y})`);
                 return true;
             }
         }
@@ -117,12 +126,12 @@
                 angle: angle,
                 distance: maxDistance,
                 collision: false,
-                originPosition: { x: car.offsetLeft + 25, y: car.offsetTop + 12.5 } // center of the car
+                originPosition: { x: 25, y: 12.5 } // center of the car relative to container
             });
             // update ray
             setInterval(() => {
                 rays[i].collision = checkCollision(rays[i]);
-            }, 1000);
+            }, 10);
             
         }
     }
@@ -141,6 +150,7 @@
     }
 
     onMount(() => {
+        updateCarCenter();
         projectRays(15);
         moveCar();
     }); 
@@ -152,15 +162,15 @@
     
     <!-- Reactive SVG rays using Svelte's templating -->
     <svg 
-        style="position: absolute; top: -50px; left: -50px; pointer-events: none; z-index: 1;"
+        style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1;"
         viewBox="0 0 400 300"
     >
         {#each rays as ray}
             <line
-                x1="75"
-                y1="62.5"
-                x2={75 + Math.cos((ray.angle) * Math.PI / 180) * ray.distance}
-                y2={62.5 + Math.sin((ray.angle) * Math.PI / 180) * ray.distance}
+                x1="25"
+                y1="12.5"
+                x2={25 + Math.cos((ray.angle) * Math.PI / 180) * ray.distance}
+                y2={12.5 + Math.sin((ray.angle) * Math.PI / 180) * ray.distance}
                 stroke={ray.collision ? "red" : "rgba(0, 255, 0, 0.7)"}
                 stroke-width="1.5"
                 opacity="0.8"
