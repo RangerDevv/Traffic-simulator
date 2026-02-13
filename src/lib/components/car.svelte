@@ -146,12 +146,15 @@
     function projectRays(numRays: number) {
         rays = []; // Clear existing rays
         const totalSpread = 180; // Total degrees to cover
-        const angleIncrement = totalSpread / (numRays - 1); // -1 to include both endpoints
+        const angleIncrement = totalSpread / numRays; // Even distribution
+        console.log('Angle Increment:', angleIncrement);
         const maxDistance = 150;
-        const startAngle = -90; // Start from -90 degrees (left side)
         
         for (let i = 0; i < numRays; i++) {
-            const angle = startAngle + (i * angleIncrement); // This will go from -90 to +90 degrees
+            // Center the rays so they're evenly distributed around the spread
+            const angle =  (i * angleIncrement)
+
+             console.log(`Projecting ray ${i} at angle: ${angle}°`);
             rays.push({
                 id: i,
                 angle: angle,
@@ -160,6 +163,7 @@
                 collision: false,
                 originPosition: { x: 25, y: 12.5 } // center of the car relative to container
             });
+            console.log(`Ray ${rays[i].id} (angle: ${rays[i].angle.toFixed(1)}°) collision: ${rays[i].collision}, hitDistance: ${rays[i].hitDistance.toFixed(2)}px`);
             // update ray
             setInterval(() => {
                 rays[i].collision = checkCollision(rays[i]);
@@ -180,7 +184,7 @@
         
         // Object avoidance: slow down or stop if obstacle detected ahead
         const hasObstacle = checkForwardCollision();
-        const speed = hasObstacle ? carAttributes.velocity = 0 : carAttributes.velocity = 5; // Slow down near obstacles
+        const speed = hasObstacle ? carAttributes.velocity = 1 : carAttributes.velocity = 5; // Slow down near obstacles
         
         // Calculate new position
         const newLeft = currentLeft + speed;
@@ -220,7 +224,7 @@
 
     onMount(() => {
         updateCarCenter();
-        projectRays(15);
+        projectRays(100);
         animationId = requestAnimationFrame(moveCar);
     });
 
@@ -245,8 +249,8 @@
             <line
                 x1="25"
                 y1="12.5"
-                x2={25 + Math.cos((ray.angle) * Math.PI / 180) * ray.distance}
-                y2={12.5 + Math.sin((ray.angle) * Math.PI / 180) * ray.distance}
+                x2={25 + Math.cos((ray.angle)) * ray.distance}
+                y2={12.5 + Math.sin((ray.angle)) * ray.distance}
                 stroke={ray.collision ? "red" : "rgba(0, 255, 0, 0.7)"}
                 stroke-width="1.5"
                 opacity="0.8"
