@@ -38,6 +38,7 @@
         id: number;
         angle: number;
         distance: number;
+        hitDistance: number; // Distance to closest collision point
         collision: boolean;
         originPosition: { x: number; y: number };
         hitObject?: number;
@@ -94,42 +95,59 @@
         const rayEndX = rayStartX + Math.cos(ray.angle * Math.PI / 180) * ray.distance;
         const rayEndY = rayStartY + Math.sin(ray.angle * Math.PI / 180) * ray.distance;
 
+        let closestDistance = ray.distance; // Start with max distance
+        let hasCollision = false;
+
         for (let obstacle of obstacles) {
-            // console.log(`Checking ray ${ray.id} against obstacle ${obstacle.id}: Ray from (${rayStartX.toFixed(2)}, ${rayStartY.toFixed(2)}) to (${rayEndX.toFixed(2)}, ${rayEndY.toFixed(2)}) vs Obstacle at (${obstacle.x}, ${obstacle.y}, ${obstacle.width}x${obstacle.height})`);
+            const sides = [
+                // left side
+                lineLine(rayStartX, rayStartY, rayEndX, rayEndY, obstacle.x, obstacle.y, obstacle.x, obstacle.y + obstacle.height),
+                // right side  
+                lineLine(rayStartX, rayStartY, rayEndX, rayEndY, obstacle.x + obstacle.width, obstacle.y, obstacle.x + obstacle.width, obstacle.y + obstacle.height),
+                // top side
+                lineLine(rayStartX, rayStartY, rayEndX, rayEndY, obstacle.x, obstacle.y, obstacle.x + obstacle.width, obstacle.y),
+                // bottom side
+                lineLine(rayStartX, rayStartY, rayEndX, rayEndY, obstacle.x, obstacle.y + obstacle.height, obstacle.x + obstacle.width, obstacle.y + obstacle.height)
+            ];
 
-            const left = lineLine(rayStartX, rayStartY, rayEndX, rayEndY, obstacle.x, obstacle.y, obstacle.x, obstacle.y + obstacle.height);
-            const right = lineLine(rayStartX, rayStartY, rayEndX, rayEndY, obstacle.x + obstacle.width, obstacle.y, obstacle.x + obstacle.width, obstacle.y + obstacle.height);
-            const top = lineLine(rayStartX, rayStartY, rayEndX, rayEndY, obstacle.x, obstacle.y, obstacle.x + obstacle.width, obstacle.y);
-            const bottom = lineLine(rayStartX, rayStartY, rayEndX, rayEndY, obstacle.x, obstacle.y + obstacle.height, obstacle.x + obstacle.width, obstacle.y + obstacle.height);
-
-            if (left || right || top || bottom) {
-                ray.collision = true;
-                // console.log(`Ray ${ray.id} collided with obstacle at (${obstacle.x}, ${obstacle.y})`);
-                return true;
+            for (let side of sides) {
+                if (side.intersects) {
+                    hasCollision = true;
+                    // Calculate actual distance to intersection point
+                    const intersectionDistance = side.t * ray.distance;
+                    if (intersectionDistance < closestDistance) {
+                        closestDistance = intersectionDistance;
+                    }
+                    
+                    console.log(`Ray ${ray.id} (angle: ${ray.angle.toFixed(1)}°) hit obstacle at distance: ${intersectionDistance.toFixed(2)}px (t=${side.t.toFixed(3)})`);
+                }
             }
         }
-        ray.collision = false;
-        return false;
+
+        ray.collision = hasCollision;
+        ray.hitDistance = closestDistance; // Update hit distance, keep original max distance
+        return hasCollision;
     }
 
     //line-line intersection
     function lineLine(x1: number, y1: number, x2: number, y2: number, x3: number, y3: number, x4: number, y4: number) {
         const den = (x1 - x2) * (y3 - y4) - (y1 - y2) * (x3 - x4);
         if (den === 0) {
-            return false; // Lines are parallel
+            return { intersects: false, t: 0 }; // Lines are parallel
         }
 
         const t = ((x1 - x3) * (y3 - y4) - (y1 - y3) * (x3 - x4)) / den;
         const u = -((x1 - x2) * (y1 - y3) - (y1 - y2) * (x1 - x3)) / den;
 
-        return t > 0 && t < 1 && u > 0 && u < 1;
+        const intersects = t > 0 && t < 1 && u > 0 && u < 1;
+        return { intersects, t };
     }
 
     function projectRays(numRays: number) {
         rays = []; // Clear existing rays
         const totalSpread = 180; // Total degrees to cover
         const angleIncrement = totalSpread / (numRays - 1); // -1 to include both endpoints
-        const maxDistance = 100;
+        const maxDistance = 150;
         const startAngle = -90; // Start from -90 degrees (left side)
         
         for (let i = 0; i < numRays; i++) {
@@ -138,6 +156,7 @@
                 id: i,
                 angle: angle,
                 distance: maxDistance,
+                hitDistance: maxDistance, // Initialize to max distance
                 collision: false,
                 originPosition: { x: 25, y: 12.5 } // center of the car relative to container
             });
@@ -161,7 +180,7 @@
         
         // Object avoidance: slow down or stop if obstacle detected ahead
         const hasObstacle = checkForwardCollision();
-        const speed = hasObstacle ? carAttributes.velocity * 0.02 : carAttributes.velocity * 0.1; // Slow down near obstacles
+        const speed = hasObstacle ? carAttributes.velocity = 0 : carAttributes.velocity = 5; // Slow down near obstacles
         
         // Calculate new position
         const newLeft = currentLeft + speed;
