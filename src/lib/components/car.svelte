@@ -145,14 +145,13 @@
 
     function projectRays(numRays: number) {
         rays = []; // Clear existing rays
-        const totalSpread = 180; // Total degrees to cover
-        const angleIncrement = totalSpread / numRays; // Even distribution
-        console.log('Angle Increment:', angleIncrement);
+        const totalSpread = 180; // Total degrees to cover (-90° to +90°)
+        const angleIncrement = totalSpread / (numRays - 1 || 1); // Even distribution, inclusive of both ends
         const maxDistance = 150;
-        
+        const halfSpread = totalSpread / 2;
         for (let i = 0; i < numRays; i++) {
-            // Center the rays so they're evenly distributed around the spread
-            const angle =  (i * angleIncrement)
+            // Center the rays symmetrically around 0° (forward / right)
+            const angle = -halfSpread + i * angleIncrement;
 
              console.log(`Projecting ray ${i} at angle: ${angle}°`);
             rays.push({
@@ -244,15 +243,15 @@
     
     <!-- Reactive SVG rays using Svelte's templating -->
     <svg 
-        style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1;"
+        style="position: absolute; top: 0; left: 0; width: 400px; height: 300px; pointer-events: none; z-index: 1; overflow: visible;"
         viewBox="0 0 400 300"
     >
         {#each rays as ray}
             <line
                 x1="25"
                 y1="12.5"
-                x2={25 + Math.cos((ray.angle)) * ray.distance}
-                y2={12.5 + Math.sin((ray.angle)) * ray.distance}
+                x2={25 + Math.cos(ray.angle * Math.PI / 180) * ray.distance}
+                y2={12.5 + Math.sin(ray.angle * Math.PI / 180) * ray.distance}
                 stroke={ray.collision ? "red" : "rgba(0, 255, 0, 0.7)"}
                 stroke-width="1.5"
                 opacity="0.8"
