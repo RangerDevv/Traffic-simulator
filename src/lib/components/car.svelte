@@ -7,13 +7,6 @@
     let carCenterY: number;
     let animationId: number;
 
-    // --- Turn / Steering state ---
-    let heading = 0;              // Current heading in degrees (0 = right, 90 = down)
-    let targetHeading = 0;        // Where the car wants to steer toward
-    let steeringRate = 2.5;       // Max degrees per frame the car can turn
-    let isTurning = false;        // Whether a turn is in progress
-    let turnCooldown = 0;         // Frames to wait before next turn decision
-
     // set the car's center coordinates based on its position and dimensions
     function updateCarCenter() {
         carCenterX = car.offsetLeft + (car.offsetWidth / 2);
@@ -150,152 +143,57 @@
         return { intersects, t };
     }
 
-    let rayUpdateInterval: ReturnType<typeof setInterval>;
-
     function projectRays(numRays: number) {
         rays = []; // Clear existing rays
-        const totalSpread = 180; // Full sensor arc in degrees
-        const angleIncrement = totalSpread / (numRays - 1 || 1);
+        const totalSpread = 180; // Total degrees to cover
+        const angleIncrement = totalSpread / numRays; // Even distribution
+        console.log('Angle Increment:', angleIncrement);
         const maxDistance = 150;
-        const halfSpread = totalSpread / 2;
-
+        
         for (let i = 0; i < numRays; i++) {
-            const localAngle = -halfSpread + i * angleIncrement; // –90 … +90 relative
-            const absoluteAngle = heading + localAngle;
+            // Center the rays so they're evenly distributed around the spread
+            const angle =  (i * angleIncrement)
 
+             console.log(`Projecting ray ${i} at angle: ${angle}°`);
             rays.push({
                 id: i,
-                angle: absoluteAngle,
+                angle: angle,
                 distance: maxDistance,
-                hitDistance: maxDistance,
+                hitDistance: maxDistance, // Initialize to max distance
                 collision: false,
-                originPosition: { x: 25, y: 12.5 }
+                originPosition: { x: 25, y: 12.5 } // center of the car relative to container
             });
-        }
-
-        // Single interval updates all rays and keeps them aligned with the heading
-        if (rayUpdateInterval) clearInterval(rayUpdateInterval);
-        rayUpdateInterval = setInterval(() => {
-            const halfSpread = totalSpread / 2;
-            for (let i = 0; i < rays.length; i++) {
-                const localAngle = -halfSpread + i * angleIncrement;
-                rays[i].angle = heading + localAngle; // Rotate with car
-                checkCollision(rays[i]);
-            }
-            rays = rays; // Trigger Svelte reactivity
-        }, 16);
-    }
-
-    /**
-     * Analyse rays in a cone relative to the car's heading.
-     * Returns { hasCollision, avgHitDistance } for that sector.
-     */
-    function analyseSector(fromDeg: number, toDeg: number) {
-        const sector = rays.filter(r => {
-            // ray.angle is absolute; normalise relative to heading
-            let rel = ((r.angle - heading) % 360 + 360) % 360;
-            if (rel > 180) rel -= 360; // –180 … 180
-            return rel >= fromDeg && rel <= toDeg;
-        });
-        const collisions = sector.filter(r => r.collision);
-        const avgHit = collisions.length
-            ? collisions.reduce((s, r) => s + r.hitDistance, 0) / collisions.length
-            : Infinity;
-        return { hasCollision: collisions.length > 0, avgHitDistance: avgHit, count: collisions.length };
-    }
-
-    /**
-     * Decide whether and where to turn.
-     * Uses three sectors: left (–90 … –15), centre (–15 … 15), right (15 … 90).
-     * The car steers toward the sector with the most open space.
-     */
-    function decideTurn() {
-        const centre = analyseSector(-20, 20);
-        const left   = analyseSector(-90, -20);
-        const right  = analyseSector(20, 90);
-
-        // Nothing ahead → go straight
-        if (!centre.hasCollision) {
-            targetHeading = heading;
-            isTurning = false;
-            return;
-        }
-
-        // Something ahead — pick the side with more room
-        isTurning = true;
-
-        const leftOpen  = left.hasCollision  ? left.avgHitDistance  : 999;
-        const rightOpen = right.hasCollision ? right.avgHitDistance : 999;
-
-        if (leftOpen > rightOpen) {
-            // Turn left (counter-clockwise)
-            targetHeading = heading - (45 + Math.random() * 30);
-        } else if (rightOpen > leftOpen) {
-            // Turn right (clockwise)
-            targetHeading = heading + (45 + Math.random() * 30);
-        } else {
-            // Equal — slight random bias influenced by aggression
-            const bias = carAttributes.aggressionLevel > 0.5 ? 1 : -1;
-            targetHeading = heading + bias * (45 + Math.random() * 30);
+            console.log(`Ray ${rays[i].id} (angle: ${rays[i].angle.toFixed(1)}°) collision: ${rays[i].collision}, hitDistance: ${rays[i].hitDistance.toFixed(2)}px`);
+            // update ray
+            setInterval(() => {
+                rays[i].collision = checkCollision(rays[i]);
+            }, 10);
+            
         }
     }
 
-    /**
-     * Smoothly interpolate the heading toward the target heading.
-     */
-    function applySteering() {
-        let diff = targetHeading - heading;
-        // Normalise to –180 … 180
-        while (diff > 180) diff -= 360;
-        while (diff < -180) diff += 360;
-
-        if (Math.abs(diff) < steeringRate) {
-            heading = targetHeading;
-            isTurning = false;
-        } else {
-            heading += Math.sign(diff) * steeringRate;
-        }
+    function checkForwardCollision() {
+        // Check if any rays in the forward direction (roughly front-facing) detect collision
+        const forwardRays = rays.filter(ray => ray.angle >= -30 && ray.angle <= 30);
+        return forwardRays.some(ray => ray.collision);
     }
 
     function moveCar() {
-        // --- Turn decision (throttled by cooldown) ---
-        if (turnCooldown <= 0) {
-            decideTurn();
-            turnCooldown = 8; // Re-evaluate every ~8 frames
-        } else {
-            turnCooldown--;
-        }
-
-        // --- Steering ---
-        applySteering();
-
-        // --- Speed control ---
-        const centre = analyseSector(-20, 20);
-        let speed: number;
-        if (centre.hasCollision && centre.avgHitDistance < 40) {
-            speed = 0.5; // Almost stopped — very close obstacle
-        } else if (centre.hasCollision) {
-            speed = Math.max(1, carAttributes.velocity );
-        } else {
-            speed = carAttributes.velocity;
-        }
-
-        // --- Movement along heading ---
-        const rad = heading * Math.PI / 180;
+        // Get current position
         const currentLeft = parseFloat(car.style.left) || 0;
-        const currentTop  = parseFloat(car.style.top)  || 0;
-
-        const newLeft = currentLeft + Math.cos(rad) * speed;
-        const newTop  = currentTop  + Math.sin(rad) * speed;
-
+        
+        // Object avoidance: slow down or stop if obstacle detected ahead
+        const hasObstacle = checkForwardCollision();
+        const speed = hasObstacle ? carAttributes.velocity = 1 : carAttributes.velocity = 5; // Slow down near obstacles
+        
+        // Calculate new position
+        const newLeft = currentLeft + speed;
+        
+        // Apply movement
         car.style.left = `${newLeft}px`;
-        car.style.top  = `${newTop}px`;
-
-        // Rotate the visual car
-        car.style.transform = `rotate(${heading}deg)`;
-
         updateCarCenter();
-
+        
+        // Continue animation loop
         animationId = requestAnimationFrame(moveCar);
     }
 
@@ -333,13 +231,14 @@
     });
 
     onDestroy(() => {
-        if (animationId) cancelAnimationFrame(animationId);
-        if (rayUpdateInterval) clearInterval(rayUpdateInterval);
+        if (animationId) {
+            cancelAnimationFrame(animationId);
+        }
     }); 
 </script>
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
-<div class="car-container" bind:this={car} style="top:50%; left:0px; position: absolute; width: 400px; height: 300px; transform-origin: 25px 12.5px;">
+<div class="car-container" bind:this={car} style="top:50%; position: absolute; width: 400px; height: 300px;">
     <div class="car"  style="background-color: {carAttributes.color}; width: 50px; height: 25px; position: relative; z-index: 2;">
     </div>
     
@@ -352,8 +251,8 @@
             <line
                 x1="25"
                 y1="12.5"
-                x2={25 + Math.cos(ray.angle * Math.PI / 180) * (ray.collision ? ray.hitDistance : ray.distance)}
-                y2={12.5 + Math.sin(ray.angle * Math.PI / 180) * (ray.collision ? ray.hitDistance : ray.distance)}
+                x2={25 + Math.cos((ray.angle)) * ray.distance}
+                y2={12.5 + Math.sin((ray.angle)) * ray.distance}
                 stroke={ray.collision ? "red" : "rgba(0, 255, 0, 0.7)"}
                 stroke-width="1.5"
                 opacity="0.8"
