@@ -175,12 +175,13 @@
     function moveCar() {
         // Get current position
         const currentLeft = parseFloat(car.style.left) || 0;
+        const forwardRays = rays.filter(ray => ray.angle >= -30 && ray.angle <= 30);
         
         let speed = carAttributes.velocity;
-        if (rays.filter(ray => ray.angle >= -30 && ray.angle <= 30).some(ray => ray.collision) && (rays.filter(ray => ray.angle >= -30 && ray.angle <= 30).some(ray => ray.hitDistance < 50) )) {
+        if (checkForwardCollision() && forwardRays.some(ray => ray.hitDistance < 50) ) {
             carAttributes.velocity = 0; // Stop if obstacle is very close
             console.log('Obstacle detected ahead! Stopping car.');
-        } else if (rays.filter(ray => ray.angle >= -30 && ray.angle <= 30).some(ray => ray.collision) && (rays.filter(ray => ray.angle >= -30 && ray.angle <= 30).some(ray => ray.hitDistance < 120) )) {
+        } else if (checkForwardCollision() && forwardRays.some(ray => ray.hitDistance < 120) ) {
             carAttributes.velocity = 1; // Slow down if obstacle is moderately close
             console.log('Obstacle detected ahead! Slowing down car.');
         } else {
