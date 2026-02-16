@@ -6,6 +6,7 @@
     let carCenterX: number;
     let carCenterY: number;
     let animationId: number;
+    let rotation: number = 0; // Car's facing direction in degrees (0 = right)
 
     // set the car's center coordinates based on its position and dimensions
     function updateCarCenter() {
@@ -92,8 +93,9 @@
         const carRect = car.getBoundingClientRect();
         const rayStartX = carRect.left + ray.originPosition.x;
         const rayStartY = carRect.top + ray.originPosition.y;
-        const rayEndX = rayStartX + Math.cos(ray.angle * Math.PI / 180) * ray.distance;
-        const rayEndY = rayStartY + Math.sin(ray.angle * Math.PI / 180) * ray.distance;
+        const worldAngle = (ray.angle + rotation) * Math.PI / 180;
+        const rayEndX = rayStartX + Math.cos(worldAngle) * ray.distance;
+        const rayEndY = rayStartY + Math.sin(worldAngle) * ray.distance;
 
         let closestDistance = ray.distance; // Start with max distance
         let hasCollision = false;
@@ -145,7 +147,7 @@
         rays = []; // Clear existing rays
         const totalSpread = 180; // Total degrees to cover (-90° to +90°)
         const angleIncrement = totalSpread / (numRays - 1 || 1); // Even distribution, inclusive of both ends
-        const maxDistance = 150;
+        const maxDistance = 200;
         const halfSpread = totalSpread / 2;
         for (let i = 0; i < numRays; i++) {
             // Center the rays symmetrically around 0° (forward / right)
@@ -173,7 +175,7 @@
     function checkCollisionInDirection(direction: 'forward' | 'left' | 'right' | 'custom', customAngleRange?: { min: number; max: number }) {
         let relevantRays: ray[] = [];
         if (direction === 'forward') {
-            relevantRays = rays.filter(ray => ray.angle >= -30 && ray.angle <= 30);
+            relevantRays = rays.filter(ray => ray.angle >= -15 && ray.angle <= 15);
         } else if (direction === 'left') {
             relevantRays = rays.filter(ray => ray.angle > 30 && ray.angle <= 90);
         } else if (direction === 'right') {
@@ -195,19 +197,25 @@
         let speed = carAttributes.velocity;
         if (checkCollisionInDirection('forward') && forwardRays.some(ray => ray.hitDistance < 50) ) {
             carAttributes.velocity = 0; // Stop if obstacle is very close
-            console.log('Obstacle detected ahead! Stopping car.');
+            rotation += 8; // Attempt to steer right to avoid obstacle
+            setTimeout(() => {
+                rotation -= 8; // Return to original direction after a short delay
+            }, 250);
         } else if (checkCollisionInDirection('forward') && forwardRays.some(ray => ray.hitDistance < 120) ) {
             carAttributes.velocity = 1; // Slow down if obstacle is moderately close
-            console.log('Obstacle detected ahead! Slowing down car.');
         } else {
             carAttributes.velocity = 5; // Normal speed
         }   
         
-        // Calculate new position
-        const newLeft = currentLeft + carAttributes.velocity;
+        // Calculate new position using rotation for direction
+        const rad = rotation * Math.PI / 180;
+        const currentTop = parseFloat(car.style.top) || 0;
+        const newLeft = currentLeft + carAttributes.velocity * Math.cos(rad);
+        const newTop = currentTop + carAttributes.velocity * Math.sin(rad);
         
         // Apply movement
         car.style.left = `${newLeft}px`;
+        car.style.top = `${newTop}px`;
         updateCarCenter();
         
         // Continue animation loop
@@ -260,7 +268,7 @@
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div class="car-container" bind:this={car} style="top:50%; position: absolute; width: 400px; height: 300px;">
-    <div class="car"  style="background-color: {carAttributes.color}; width: 50px; height: 25px; position: relative; z-index: 2;">
+    <div class="car" style="background-color: {carAttributes.color}; width: 50px; height: 25px; position: relative; z-index: 2; transform: rotate({rotation}deg); transform-origin: center center;">
     </div>
     
     <!-- Reactive SVG rays using Svelte's templating -->
@@ -272,8 +280,8 @@
             <line
                 x1="25"
                 y1="12.5"
-                x2={25 + Math.cos(ray.angle * Math.PI / 180) * ray.distance}
-                y2={12.5 + Math.sin(ray.angle * Math.PI / 180) * ray.distance}
+                x2={25 + Math.cos((ray.angle + rotation) * Math.PI / 180) * (ray.collision ? ray.hitDistance : ray.distance)}
+                y2={12.5 + Math.sin((ray.angle + rotation) * Math.PI / 180) * (ray.collision ? ray.hitDistance : ray.distance)}
                 stroke={ray.collision ? "red" : "rgba(0, 255, 0, 0.7)"}
                 stroke-width="1.5"
                 opacity="0.8"
