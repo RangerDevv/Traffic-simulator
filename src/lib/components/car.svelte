@@ -170,7 +170,7 @@
 
 
     //  directional collision check 
-    function checkCollisionInDirection(direction: 'forward' | 'left' | 'right') {
+    function checkCollisionInDirection(direction: 'forward' | 'left' | 'right' | 'custom', customAngleRange?: { min: number; max: number }) {
         let relevantRays: ray[] = [];
         if (direction === 'forward') {
             relevantRays = rays.filter(ray => ray.angle >= -30 && ray.angle <= 30);
@@ -178,6 +178,8 @@
             relevantRays = rays.filter(ray => ray.angle > 30 && ray.angle <= 90);
         } else if (direction === 'right') {
             relevantRays = rays.filter(ray => ray.angle < -30 && ray.angle >= -90);
+        } else if (direction === 'custom' && customAngleRange) {
+            relevantRays = rays.filter(ray => ray.angle >= customAngleRange.min && ray.angle <= customAngleRange.max);
         }
         return relevantRays.some(ray => ray.collision);
     }
