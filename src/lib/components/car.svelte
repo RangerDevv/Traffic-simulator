@@ -6,7 +6,7 @@
     let carCenterX: number;
     let carCenterY: number;
     let animationId: number;
-    let rotation: number = 0; // Car's facing direction in degrees (0 = right)
+    let rotation: number = 0;
 
     // set the car's center coordinates based on its position and dimensions
     function updateCarCenter() {
@@ -39,7 +39,7 @@
         id: number;
         angle: number;
         distance: number;
-        hitDistance: number; // Distance to closest collision point
+        hitDistance: number; 
         collision: boolean;
         originPosition: { x: number; y: number };
         hitObject?: number;
