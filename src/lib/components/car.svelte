@@ -118,8 +118,6 @@
                     if (intersectionDistance < closestDistance) {
                         closestDistance = intersectionDistance;
                     }
-                    
-                    console.log(`Ray ${ray.id} (angle: ${ray.angle.toFixed(1)}°) hit obstacle at distance: ${intersectionDistance.toFixed(2)}px (t=${side.t.toFixed(3)})`);
                 }
             }
         }
@@ -152,8 +150,6 @@
         for (let i = 0; i < numRays; i++) {
             // Center the rays symmetrically around 0° (forward / right)
             const angle = -halfSpread + i * angleIncrement;
-
-             console.log(`Projecting ray ${i} at angle: ${angle}°`);
             rays.push({
                 id: i,
                 angle: angle,
@@ -162,7 +158,6 @@
                 collision: false,
                 originPosition: { x: 25, y: 12.5 } // center of the car relative to container
             });
-            console.log(`Ray ${rays[i].id} (angle: ${rays[i].angle.toFixed(1)}°) collision: ${rays[i].collision}, hitDistance: ${rays[i].hitDistance.toFixed(2)}px`);
             // update ray
             setInterval(() => {
                 rays[i].collision = checkCollision(rays[i]);
@@ -181,12 +176,19 @@
         // Get current position
         const currentLeft = parseFloat(car.style.left) || 0;
         
-        // Object avoidance: slow down or stop if obstacle detected ahead
-        const hasObstacle = checkForwardCollision();
-        const speed = hasObstacle ? carAttributes.velocity = 1 : carAttributes.velocity = 5; // Slow down near obstacles
+        let speed = carAttributes.velocity;
+        if (rays.filter(ray => ray.angle >= -30 && ray.angle <= 30).some(ray => ray.collision) && (rays.filter(ray => ray.angle >= -30 && ray.angle <= 30).some(ray => ray.hitDistance < 50) )) {
+            carAttributes.velocity = 0; // Stop if obstacle is very close
+            console.log('Obstacle detected ahead! Stopping car.');
+        } else if (rays.filter(ray => ray.angle >= -30 && ray.angle <= 30).some(ray => ray.collision) && (rays.filter(ray => ray.angle >= -30 && ray.angle <= 30).some(ray => ray.hitDistance < 120) )) {
+            carAttributes.velocity = 1; // Slow down if obstacle is moderately close
+            console.log('Obstacle detected ahead! Slowing down car.');
+        } else {
+            carAttributes.velocity = 5; // Normal speed
+        }   
         
         // Calculate new position
-        const newLeft = currentLeft + speed;
+        const newLeft = currentLeft + carAttributes.velocity;
         
         // Apply movement
         car.style.left = `${newLeft}px`;
