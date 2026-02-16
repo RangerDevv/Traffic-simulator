@@ -158,12 +158,14 @@
                 collision: false,
                 originPosition: { x: 25, y: 12.5 } // center of the car relative to container
             });
-            // update ray
-            setInterval(() => {
-                rays[i].collision = checkCollision(rays[i]);
-            }, 10);
-            
         }
+    }
+
+    function updateAllRays() {
+        for (let i = 0; i < rays.length; i++) {
+            checkCollision(rays[i]);
+        }
+        rays = rays; // Trigger Svelte reactivity
     }
 
     function checkForwardCollision() {
@@ -173,6 +175,9 @@
     }
 
     function moveCar() {
+        // Update all ray collisions each frame
+        updateAllRays();
+
         // Get current position
         const currentLeft = parseFloat(car.style.left) || 0;
         const forwardRays = rays.filter(ray => ray.angle >= -30 && ray.angle <= 30);
