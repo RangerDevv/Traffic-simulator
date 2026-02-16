@@ -168,10 +168,18 @@
         rays = rays; // Trigger Svelte reactivity
     }
 
-    function checkForwardCollision() {
-        // Check if any rays in the forward direction (roughly front-facing) detect collision
-        const forwardRays = rays.filter(ray => ray.angle >= -30 && ray.angle <= 30);
-        return forwardRays.some(ray => ray.collision);
+
+    //  directional collision check 
+    function checkCollisionInDirection(direction: 'forward' | 'left' | 'right') {
+        let relevantRays: ray[] = [];
+        if (direction === 'forward') {
+            relevantRays = rays.filter(ray => ray.angle >= -30 && ray.angle <= 30);
+        } else if (direction === 'left') {
+            relevantRays = rays.filter(ray => ray.angle > 30 && ray.angle <= 90);
+        } else if (direction === 'right') {
+            relevantRays = rays.filter(ray => ray.angle < -30 && ray.angle >= -90);
+        }
+        return relevantRays.some(ray => ray.collision);
     }
 
     function moveCar() {
@@ -183,10 +191,10 @@
         const forwardRays = rays.filter(ray => ray.angle >= -30 && ray.angle <= 30);
         
         let speed = carAttributes.velocity;
-        if (checkForwardCollision() && forwardRays.some(ray => ray.hitDistance < 50) ) {
+        if (checkCollisionInDirection('forward') && forwardRays.some(ray => ray.hitDistance < 50) ) {
             carAttributes.velocity = 0; // Stop if obstacle is very close
             console.log('Obstacle detected ahead! Stopping car.');
-        } else if (checkForwardCollision() && forwardRays.some(ray => ray.hitDistance < 120) ) {
+        } else if (checkCollisionInDirection('forward') && forwardRays.some(ray => ray.hitDistance < 120) ) {
             carAttributes.velocity = 1; // Slow down if obstacle is moderately close
             console.log('Obstacle detected ahead! Slowing down car.');
         } else {
@@ -203,6 +211,10 @@
         // Continue animation loop
         animationId = requestAnimationFrame(moveCar);
     }
+
+
+
+    //  Drag-and-drop logic for the obstacle box-----------------------
 
     let dragTarget: HTMLElement | null = null;
 
