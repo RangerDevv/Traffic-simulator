@@ -6,6 +6,7 @@
     let carCenterX: number;
     let carCenterY: number;
     let animationId: number;
+    let lastTime: number = 0;
     let rotation: number = 0;
 
     // set the car's center coordinates based on its position and dimensions
@@ -16,10 +17,10 @@
 
     export let carAttributes: CarAttributes = {
         color: "red",
-        velocity: 10,
-        maxSpeed: 10,
-        acceleration: 3,
-        deceleration: 5,
+        velocity: 0,          // px/s — starts at rest, integrated each frame
+        maxSpeed: 200,        // px/s
+        acceleration: 150,    // px/s²
+        deceleration: 300,    // px/s²
         aggressionLevel: 0.5,
         reactionTime: 1.5,
         riskTolerance: 0.5,
@@ -184,38 +185,50 @@
         return relevantRays.some(ray => ray.collision);
     }
 
-    function moveCar() {
+    function moveCar(timestamp: number) {
+        // dt in seconds; cap at 100 ms to avoid a large jump after tab blur/focus
+        const dt = lastTime === 0 ? 0 : Math.min((timestamp - lastTime) / 1000, 0.1);
+        lastTime = timestamp;
+
         // Update all ray collisions each frame
         updateAllRays();
 
         // Get current position
         const currentLeft = parseFloat(car.style.left) || 0;
+        const currentTop  = parseFloat(car.style.top)  || 0;
         const forwardRays = rays.filter(ray => ray.angle >= -30 && ray.angle <= 30);
-        
-        let speed = carAttributes.velocity;
-        if (checkCollisionInDirection('forward') && forwardRays.some(ray => ray.hitDistance < 50) ) {
-            carAttributes.velocity = 0; // Stop if obstacle is very close
-            rotation += 8; // Attempt to steer right to avoid obstacle
-            setTimeout(() => {
-                rotation -= 8; // Return to original direction after a short delay
-            }, 250);
-        } else if (checkCollisionInDirection('forward') && forwardRays.some(ray => ray.hitDistance < 120) ) {
-            carAttributes.velocity = 1; // Slow down if obstacle is moderately close
+
+        // Stopping distance: d = v² / (2·a)
+        const stoppingDistance = (carAttributes.velocity ** 2) / (2 * carAttributes.deceleration);
+        const safetyMargin = 20; // px buffer beyond the computed stopping distance
+
+        const minForwardHit = forwardRays.length > 0
+            ? Math.min(...forwardRays.map(r => r.hitDistance))
+            : Infinity;
+
+        if (checkCollisionInDirection('forward') && minForwardHit < safetyMargin) {
+            // Very close — brake hard and steer away
+            // v = v₀ - a·dt  (decelerate)
+            carAttributes.velocity = Math.max(0, carAttributes.velocity - carAttributes.deceleration * dt);
+            rotation += 480 * dt; // ~8°/frame at 60 fps (angular velocity · dt)
+        } else if (checkCollisionInDirection('forward') && minForwardHit < stoppingDistance + safetyMargin) {
+            // Within braking distance — decelerate: v = v₀ - a·dt
+            carAttributes.velocity = Math.max(0, carAttributes.velocity - carAttributes.deceleration * dt);
         } else {
-            carAttributes.velocity = 5; // Normal speed
-        }   
-        
-        // Calculate new position using rotation for direction
+            // Clear path — accelerate: v = v₀ + a·dt
+            carAttributes.velocity = Math.min(carAttributes.maxSpeed, carAttributes.velocity + carAttributes.acceleration * dt);
+        }
+
+        // Position integration: x = x₀ + v·dt
         const rad = rotation * Math.PI / 180;
-        const currentTop = parseFloat(car.style.top) || 0;
-        const newLeft = currentLeft + carAttributes.velocity * Math.cos(rad);
-        const newTop = currentTop + carAttributes.velocity * Math.sin(rad);
-        
+        const newLeft = currentLeft + carAttributes.velocity * Math.cos(rad) * dt;
+        const newTop  = currentTop  + carAttributes.velocity * Math.sin(rad) * dt;
+
         // Apply movement
         car.style.left = `${newLeft}px`;
-        car.style.top = `${newTop}px`;
+        car.style.top  = `${newTop}px`;
         updateCarCenter();
-        
+
         // Continue animation loop
         animationId = requestAnimationFrame(moveCar);
     }
@@ -223,6 +236,7 @@
 
 
     onMount(() => {
+        lastTime = 0;
         updateCarCenter();
         projectRays(100);
         animationId = requestAnimationFrame(moveCar);
