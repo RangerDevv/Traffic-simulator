@@ -29,3 +29,15 @@ interface CarAttributes {
     yellowLightBehavior: number; // 0-1 scale, 0=always stop, 1=always go
     stopSignCompliance: number;  // 0-1 scale, how completely they stop
 }
+
+interface Obstacle {
+    id: number;
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    shape: 'rectangle' | 'circle' | 'wall';
+    color: string;
+    label: string;
+    locked: boolean;
+}

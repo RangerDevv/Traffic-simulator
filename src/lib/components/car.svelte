@@ -46,8 +46,6 @@
     }
     
     let rays: ray[] = [];
-    let dragging = false;
-    let dragOffset = { x: 0, y: 0 };
 
     function getSceneObstacles() {
         const obstacles = [] as {
@@ -62,8 +60,8 @@
             rightmostY?: number;
         }[];
         
-        // Find all elements marked as obstacles (you can use class, data attribute, etc.)
-        const obstacleElements = document.querySelectorAll('[data-obstacle], .obstacle, span[draggable="true"]');
+        // Find all elements marked as obstacles
+        const obstacleElements = document.querySelectorAll('[data-obstacle]');
         
         obstacleElements.forEach((element, index) => {
             // console.log('Found obstacle element:', element);
@@ -175,7 +173,7 @@
     function checkCollisionInDirection(direction: 'forward' | 'left' | 'right' | 'custom', customAngleRange?: { min: number; max: number }) {
         let relevantRays: ray[] = [];
         if (direction === 'forward') {
-            relevantRays = rays.filter(ray => ray.angle >= -15 && ray.angle <= 15);
+            relevantRays = rays.filter(ray => ray.angle >= -10 && ray.angle <= 10);
         } else if (direction === 'left') {
             relevantRays = rays.filter(ray => ray.angle > 30 && ray.angle <= 90);
         } else if (direction === 'right') {
@@ -224,35 +222,6 @@
 
 
 
-    //  Drag-and-drop logic for the obstacle box-----------------------
-
-    let dragTarget: HTMLElement | null = null;
-
-    function handlePointerDown(event: PointerEvent) {
-        const el = event.currentTarget as HTMLElement;
-        const rect = el.getBoundingClientRect();
-        dragOffset.x = event.clientX - rect.left;
-        dragOffset.y = event.clientY - rect.top;
-        dragging = true;
-        dragTarget = el;
-        el.setPointerCapture(event.pointerId);
-        el.style.cursor = 'grabbing';
-    }
-
-    function handlePointerMove(event: PointerEvent) {
-        if (!dragging || !dragTarget) return;
-        dragTarget.style.left = `${event.clientX - dragOffset.x}px`;
-        dragTarget.style.top  = `${event.clientY - dragOffset.y}px`;
-    }
-
-    function handlePointerUp(event: PointerEvent) {
-        if (!dragTarget) return;
-        dragging = false;
-        dragTarget.style.cursor = 'grab';
-        dragTarget.releasePointerCapture(event.pointerId);
-        dragTarget = null;
-    }
-
     onMount(() => {
         updateCarCenter();
         projectRays(100);
@@ -289,13 +258,4 @@
         {/each}
     </svg>
 
-    <!-- draggable box to simulate obstacle -->
 </div>
-<!-- svelte-ignore a11y_no_static_element_interactions -->
-<div
-    data-obstacle
-    style="position: absolute; width: 30px; height: 30px; background-color: black; left: 200px; top: 45%; z-index: 10; cursor: grab; border-radius: 4px; touch-action: none; user-select: none;"
-    on:pointerdown={handlePointerDown}
-    on:pointermove={handlePointerMove}
-    on:pointerup={handlePointerUp}
-></div>
